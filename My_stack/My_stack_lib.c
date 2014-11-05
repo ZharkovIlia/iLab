@@ -172,7 +172,11 @@ int my_stack_double_push( my_stack_double * this, double data)
         if ( (this->stack_pointer - this->data) == this->size ) {
             i = 0;
             do {
-                data_ptr = realloc(this->data, (this->size)*2*sizeof(*data_ptr));
+                if (this->size == 0) {
+                    data_ptr = (double*) realloc(this->data, sizeof(*data_ptr));
+                } else {
+                    data_ptr = (double*) realloc(this->data, (this->size)*2*sizeof(*data_ptr));
+                }
                 i++;
             } while (i < DO_AGAIN && data_ptr == NULL);
             if (data_ptr == NULL) {
@@ -180,7 +184,11 @@ int my_stack_double_push( my_stack_double * this, double data)
             } else {
                 this->data = data_ptr;
                 this->stack_pointer = this->data + this->size;
-                this->size *= 2;
+                if (this->size == 0) {
+                    this->size = 1;
+                } else {
+                    this->size *= 2;
+                }
                 *(this->stack_pointer++) = data;
                 return ALLRIGHT;
             }
