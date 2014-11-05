@@ -1,0 +1,46 @@
+JMP :postpower
+power: pop AX
+pop BX
+push AX
+JZ :var_1
+pop
+push BX
+push AX
+push -1
+add
+
+while_1_cond: JNZ :while_1_continue
+JMP :var_2
+while_1_continue: pop AX
+push BX
+mul
+push AX
+push -1
+add
+JMP :while_1_cond
+
+var_1: pop 
+pop AX
+push 1
+push AX
+JMP
+var_2: pop
+pop AX
+pop BX
+push AX
+push BX
+JMP
+
+postpower: push 60
+push 2
+push 5
+JMP :power
+pop
+push 69
+push 2
+push 0
+JMP :power
+pop
+add
+out
+end
