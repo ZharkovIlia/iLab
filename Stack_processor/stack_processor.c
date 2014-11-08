@@ -31,7 +31,6 @@ int main(void)
         return 0;
     }
     printf("compilation has finished successfully\n");
-    printf("result of your program:\n");
     err = Stack_processor(file_sec);
     if (err == 1) {
         printf("there are some problems with function realloc");
@@ -39,12 +38,16 @@ int main(void)
     }
 
     printf("enter name of file, which you want to recover from the sequence of numbers\n");
+    while ((ch = getchar()) == '\n' || ch == ' ');
+    ungetc(ch, stdin);
     for (i = 0; (ch = getchar()) != '\n'; i++) {
         file_fir[i] = ch;
     }
     file_fir[i] = '\0';
 
     printf("enter name of file, where you want to write original codes\n");
+    while ((ch = getchar()) == '\n' || ch == ' ');
+    ungetc(ch, stdin);
     for (i = 0; (ch = getchar()) != '\n'; i++) {
         file_sec[i] = ch;
     }

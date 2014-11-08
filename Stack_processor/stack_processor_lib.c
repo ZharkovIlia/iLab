@@ -4,11 +4,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <math.h>
 #undef assert
 #define assert(cond)
 
 const int MAX_SZNAME_LINE = 100;
 const int MAX_SZDATA_OF_LABEL = 100;
+const int MAX_SZDATA_OF_CALL = 100;
 const int MAX_SZDATA_OF_REGISTRS = 4;
 const int ERR_COMPILATION = -1;
 const int ERR_REALLOC = 1;
@@ -46,7 +48,7 @@ void Print_name_oper(const int operation)
             printf("pop to");
             break;
         case 10:
-            printf("JMP st");
+            printf("ret");
             break;
         case 11:
             printf("JNZ");
@@ -56,6 +58,28 @@ void Print_name_oper(const int operation)
             break;
         case 13:
             printf("push from");
+            break;
+        case 14:
+            printf("push from stdin");
+            break;
+        case 15:
+            printf("pop to stdout");
+            break;
+        case 16:
+            printf("call");
+            break;
+        case 17:
+            printf("div");
+            break;
+        case 18:
+            printf("sqrt");
+            break;
+        case 19:
+            printf("JG");
+            break;
+        case 20:
+            printf("JL");
+            break;
         default:
             printf("no such name of operation");
             break;
@@ -91,6 +115,20 @@ int Num_one_oper(const int operation)
             return 2;
         case 13:
             return 2;
+        case 14:
+            return 1;
+        case 15:
+            return 1;
+        case 16:
+            return 3;
+        case 17:
+            return 1;
+        case 18:
+            return 1;
+        case 19:
+            return 2;
+        case 20:
+            return 2;
     }
     return 0;
 }
@@ -102,10 +140,11 @@ int Stack_assembler(const char * str_file_in, const char * str_file_out)
         return ERR_OPEN_FILE;
     }
     FILE * f_out = fopen(str_file_out, "w");
-    int i = 0, num_oper = 0, num_label = 0, num_reg = 0, is_empty_line = 0;
+    int i = 0, num_oper = 0, num_label = 0, num_reg = 0, is_empty_line = 0, num_call = 0;
     double number = 0;
-    int i_label = 0, i_reg = 0;
+    int i_label = 0, i_reg = 0, i_call = 0;
     int * data_label = (int *) malloc(MAX_SZDATA_OF_LABEL*sizeof(*data_label));
+    int * data_call = (int *) malloc(MAX_SZDATA_OF_CALL*sizeof(*data_call));
     char ** data_reg = (char**)malloc(MAX_SZDATA_OF_REGISTRS*sizeof(*data_reg));
     char ** data_strlabel = (char**) malloc(MAX_SZDATA_OF_LABEL*sizeof(*data_strlabel));
     char ch = 0;
@@ -151,12 +190,19 @@ int Stack_assembler(const char * str_file_in, const char * str_file_out)
             }
             if ((pstr1 = strchr(oper, ' ')) != NULL) {
                 if ((pstr2 = strchr(oper, ':')) != NULL) {
-                    if (strncmp(oper, "JMP", 3) == 0) {
+                    if (strncmp(oper, "JMP ", 4) == 0) {
                         num_oper += Num_one_oper(6);
-                    } else if (strncmp(oper, "JNZ", 3) == 0) {
+                    } else if (strncmp(oper, "JNZ ", 4) == 0) {
                         num_oper += Num_one_oper(11);
-                    } else if (strncmp(oper, "JZ", 2) == 0) {
+                    } else if (strncmp(oper, "JZ ", 3) == 0) {
                         num_oper += Num_one_oper(12);
+                    } else if (strncmp(oper, "call ", 5) == 0) {
+                        data_call[num_call++] = num_oper + 3;
+                        num_oper += Num_one_oper(16);
+                    } else if (strncmp(oper, "JG ", 3) == 0) {
+                        num_oper += Num_one_oper(19);
+                    } else if (strncmp(oper, "JL ", 3) == 0) {
+                        num_oper += Num_one_oper(20);
                     } else {
                         assert(0); // variant is impossible
                         return ERR_COMPILATION;
@@ -166,10 +212,14 @@ int Stack_assembler(const char * str_file_in, const char * str_file_out)
                         num_oper += 2;
                     } else {
                         for (i = 0; i < num_reg && strcmp(data_reg[i], pstr1+1) != 0; i++);
-                        if (i == num_reg) {
+                        if (i == num_reg && strcmp(pstr1+1, "io") != 0) {
                             strcpy(data_reg[num_reg++], pstr1+1);
+                            num_oper += 2;
+                        } else if (i == num_reg) {
+                            num_oper += 1;
+                        } else {
+                            num_oper += 2;
                         }
-                        num_oper += 2;
                     }
                 }
             } else {
@@ -185,8 +235,12 @@ int Stack_assembler(const char * str_file_in, const char * str_file_out)
                     num_oper += Num_one_oper(7);
                 } else if (strcmp(oper, "end") == 0) {
                     num_oper += Num_one_oper(8);
-                } else if (strcmp(oper, "JMP") == 0) {
+                } else if (strcmp(oper, "ret") == 0) {
                     num_oper += Num_one_oper(10);
+                } else if (strcmp(oper, "div") == 0) {
+                    num_oper += Num_one_oper(17);
+                } else if (strcmp(oper, "sqrt") == 0) {
+                    num_oper += Num_one_oper(18);
                 } else {
                     assert(0); //variant is impossible
                     return ERR_COMPILATION;
@@ -198,6 +252,7 @@ int Stack_assembler(const char * str_file_in, const char * str_file_out)
     fclose(f_in);
 
     f_in = fopen(str_file_in, "r");
+    i_call = 0;
     do {
         i = 0;
         while (fscanf(f_in, "%c", &ch) == 1) {
@@ -228,39 +283,50 @@ int Stack_assembler(const char * str_file_in, const char * str_file_out)
             if ((pstr1 = strchr(oper, ' ')) != NULL) {
                 if ((pstr2 = strchr(oper, ':')) != NULL) {
                     for (i_label = 0; strcmp(data_strlabel[i_label], pstr2+1) != 0; i_label++);
-                    if (strncmp(oper, "JMP", 3) == 0) {
-                        fprintf(f_out, "%d\n", 6);
-                        fprintf(f_out, "%d\n", data_label[i_label]);
-                    } else if (strncmp(oper, "JNZ", 3) == 0) {
-                        fprintf(f_out, "%d\n", 11);
-                        fprintf(f_out, "%d\n", data_label[i_label]);
-                    } else if (strncmp(oper, "JZ", 2) == 0) {
-                        fprintf(f_out, "%d\n", 12);
-                        fprintf(f_out, "%d\n", data_label[i_label]);
+                    if (strncmp(oper, "JMP ", 4) == 0) {
+                        fprintf(f_out, "%d\n%d\n", 6, data_label[i_label]);
+                    } else if (strncmp(oper, "JNZ ", 4) == 0) {
+                        fprintf(f_out, "%d\n%d\n", 11, data_label[i_label]);
+                    } else if (strncmp(oper, "JZ ", 3) == 0) {
+                        fprintf(f_out, "%d\n%d\n", 12, data_label[i_label]);
+                    } else if (strncmp(oper, "JG ", 3) == 0) {
+                        fprintf(f_out, "%d\n%d\n", 19, data_label[i_label]);
+                    } else if (strncmp(oper, "JL ", 3) == 0) {
+                        fprintf(f_out, "%d\n%d\n", 20, data_label[i_label]);
+                    } else if (strncmp(oper, "call ", 5) == 0) {
+                        fprintf(f_out, "%d\n%d\n%d\n", 16, data_call[i_call++], data_label[i_label]);
                     } else {
                         assert(0); //variant is impossible
                         return ERR_COMPILATION;
                     }
                 } else {
                     if ( sscanf(pstr1, "%lf", &number) != 0) {
-                        if (strncmp(oper, "push", 4) == 0) {
-                            fprintf(f_out, "%d\n", 1);
-                            fprintf(f_out, "%lf\n", number);
+                        if (strncmp(oper, "push ", 5) == 0) {
+                            fprintf(f_out, "%d\n%lf\n", 1, number);
                         } else {
                             assert(0); // variant is impossible
                             return ERR_COMPILATION;
                         }
                     } else {
-                        for (i_reg = 0; strcmp(pstr1+1, data_reg[i_reg]) != 0; i_reg++);
-                        if (strncmp(oper, "pop", 3) == 0) {
-                            fprintf(f_out, "%d\n", 9);
-                            fprintf(f_out, "%d\n", i_reg);
-                        } else if (strncmp(oper, "push", 4) == 0) {
-                            fprintf(f_out, "%d\n", 13);
-                            fprintf(f_out, "%d\n", i_reg);
+                        if (strcmp(pstr1+1, "io") == 0) {
+                            if (strncmp(oper, "push ", 5) == 0) {
+                                fprintf(f_out, "%d\n", 14);
+                            } else if (strncmp(oper, "pop ", 4) == 0) {
+                                fprintf(f_out, "%d\n", 15);
+                            } else {
+                                assert(0); // variant is impossible
+                                return ERR_COMPILATION;
+                            }
                         } else {
-                            assert(0); // variant is impossible
-                            return ERR_COMPILATION;
+                            for (i_reg = 0; strcmp(pstr1+1, data_reg[i_reg]) != 0; i_reg++);
+                            if (strncmp(oper, "pop ", 4) == 0) {
+                                fprintf(f_out, "%d\n%d\n", 9, i_reg);
+                            } else if (strncmp(oper, "push ", 5) == 0) {
+                                fprintf(f_out, "%d\n%d\n", 13, i_reg);
+                            } else {
+                                assert(0); // variant is impossible
+                                return ERR_COMPILATION;
+                            }
                         }
                     }
                 }
@@ -277,8 +343,12 @@ int Stack_assembler(const char * str_file_in, const char * str_file_out)
                     fprintf(f_out, "%d\n", 7);
                 } else if (strcmp(oper, "end") == 0) {
                     fprintf(f_out, "%d\n", 8);
-                } else if (strcmp(oper, "JMP") == 0) {
+                } else if (strcmp(oper, "ret") == 0) {
                     fprintf(f_out, "%d\n", 10);
+                } else if (strcmp(oper, "div") == 0) {
+                    fprintf(f_out, "%d\n", 17);
+                } else if (strcmp(oper, "sqrt") == 0) {
+                    fprintf(f_out, "%d\n", 18);
                 } else {
                     assert(0); // variant is impossible
                     return ERR_COMPILATION;
@@ -299,6 +369,7 @@ int Stack_assembler(const char * str_file_in, const char * str_file_out)
     }
     free(data_strlabel);
     free(oper);
+    free(data_call);
     return 0;
 }
 
@@ -347,6 +418,7 @@ int Stack_processor(const char* str_file)
     double num1 = 0, num2 = 0;
     int num_oper = 0, num_oper_max = 1;
     int position = 0;
+
     my_stack_double *stack = my_stack_double_new(1);
 
     while (fscanf(f_in, "%lf", &data_oper[num_oper]) == 1) {
@@ -402,8 +474,7 @@ int Stack_processor(const char* str_file)
                 position = (int)data_oper[position+1];
                 break;
             case 7:
-                num1 = my_stack_double_pop(stack);
-                printf("%.5lf\n", num1);
+                my_stack_double_empty(stack);
                 position += Num_one_oper(7);
                 break;
             case 8:
@@ -414,17 +485,17 @@ int Stack_processor(const char* str_file)
                 position += Num_one_oper(9);
                 break;
             case 10:
-                position = (int)my_stack_double_top(stack);
+                position = (int)my_stack_double_pop(stack);
                 break;
             case 11:
-                if ((int)my_stack_double_top(stack) == 0) {
+                if (my_stack_double_top(stack) == 0) {
                     position += Num_one_oper(11);
                 } else {
                     position = (int)data_oper[position+1];
                 }
                 break;
             case 12:
-                if ((int)my_stack_double_top(stack) == 0) {
+                if (my_stack_double_top(stack) == 0) {
                     position = (int)data_oper[position+1];
                 } else {
                     position += Num_one_oper(12);
@@ -433,6 +504,45 @@ int Stack_processor(const char* str_file)
             case 13:
                 my_stack_double_push(stack, data_reg[(int)data_oper[position+1]]);
                 position += Num_one_oper(13);
+                break;
+            case 14:
+                scanf("%lf", &num1);
+                my_stack_double_push(stack, num1);
+                position += Num_one_oper(14);
+                break;
+            case 15:
+                num1 = my_stack_double_pop(stack);
+                printf("%0.5lf\n", num1);
+                position += Num_one_oper(15);
+                break;
+            case 16:
+                my_stack_double_push(stack, data_oper[position+1]);
+                position = data_oper[position+2];
+                break;
+            case 17:
+                num1 = my_stack_double_pop(stack);
+                num2 = my_stack_double_pop(stack);
+                my_stack_double_push(stack, num2 / num1);
+                position += Num_one_oper(17);
+                break;
+            case 18:
+                num1 = my_stack_double_pop(stack);
+                my_stack_double_push(stack, sqrt(num1));
+                position += Num_one_oper(18);
+                break;
+            case 19:
+                if (my_stack_double_top(stack) > 0) {
+                    position = (int)data_oper[position+1];
+                } else {
+                    position += Num_one_oper(19);
+                }
+                break;
+            case 20:
+                if (my_stack_double_top(stack) < 0) {
+                    position = (int)data_oper[position+1];
+                } else {
+                    position += Num_one_oper(20);
+                }
                 break;
             default:
                 assert(0); // variant is impossible
@@ -453,12 +563,14 @@ int Stack_disassembler(const char * str_file_in, const char * str_file_out)
         return ERR_OPEN_FILE;
     }
     FILE * f_out = fopen(str_file_out, "w");
-    int num_oper = 0, num_str_oper = 0, num_str_oper_max = 1, num_label = 0;
+    int num_oper = 0, num_str_oper = 0, num_str_oper_max = 1, num_label = 0, num_call = 0;
     int i = 0, j = 0;
     double additional_doub = 0, ind_oper = 0;
     int * data_pos_oper = (int*) malloc(sizeof(*data_pos_oper));
     int * data_ind_label = (int*) malloc(sizeof(*data_ind_label)*MAX_SZDATA_OF_LABEL);
-    int * data_flag_oper;
+    int * data_ind_call = (int*) malloc(MAX_SZDATA_OF_CALL*sizeof(*data_ind_call));
+    int * data_flag_label;
+    int * data_flag_call;
     int * pint = NULL;
 
     while (fscanf(f_in, "%lf", &ind_oper) == 1) {
@@ -533,6 +645,50 @@ int Stack_disassembler(const char * str_file_in, const char * str_file_out)
                 num_oper += Num_one_oper(13);
                 fscanf(f_in, "%lf", &additional_doub);
                 break;
+            case 14:
+                data_pos_oper[num_str_oper++] = num_oper;
+                num_oper += Num_one_oper(14);
+                break;
+            case 15:
+                data_pos_oper[num_str_oper++] = num_oper;
+                num_oper += Num_one_oper(15);
+                break;
+            case 16:
+                data_pos_oper[num_str_oper++] = num_oper;
+                num_oper += Num_one_oper(16);
+                fscanf(f_in, "%lf", &additional_doub);
+                fscanf(f_in, "%lf", &additional_doub);
+                for (i = 0; i < num_call && data_ind_call[i] != (int)additional_doub; i++);
+                if (i == num_call) {
+                    data_ind_call[num_call++] = (int)additional_doub;
+                }
+                break;
+            case 17:
+                data_pos_oper[num_str_oper++] = num_oper;
+                num_oper += Num_one_oper(17);
+                break;
+            case 18:
+                data_pos_oper[num_str_oper++] = num_oper;
+                num_oper += Num_one_oper(18);
+                break;
+            case 19:
+                data_pos_oper[num_str_oper++] = num_oper;
+                num_oper += Num_one_oper(19);
+                fscanf(f_in, "%lf", &additional_doub);
+                for (i = 0; i < num_label && data_ind_label[i] != (int)additional_doub; i++);
+                if (i == num_label) {
+                    data_ind_label[num_label++] = (int)additional_doub;
+                }
+                break;
+            case 20:
+                data_pos_oper[num_str_oper++] = num_oper;
+                num_oper += Num_one_oper(20);
+                fscanf(f_in, "%lf", &additional_doub);
+                for (i = 0; i < num_label && data_ind_label[i] != (int)additional_doub; i++);
+                if (i == num_label) {
+                    data_ind_label[num_label++] = (int)additional_doub;
+                }
+                break;
             default:
                 return ERR_DISASSEMBLER;
                 break;
@@ -549,14 +705,22 @@ int Stack_disassembler(const char * str_file_in, const char * str_file_out)
             }
         }
     }
-    data_flag_oper = (int*)malloc(num_str_oper*sizeof(*data_flag_oper));
+    data_flag_label = (int*) malloc(num_str_oper*sizeof(*data_flag_label));
+    data_flag_call = (int*) malloc(num_str_oper*sizeof(*data_flag_call));
+
     for (i = 0; i < num_str_oper; i++) {
-        data_flag_oper[i] = -1;
+        data_flag_label[i] = -1;
+        data_flag_call[i] = -1;
     }
-    for (i = 0; i < num_label; i++) {
-        for (j = 0; j < num_str_oper; j++) {
+    for (j = 0; j < num_str_oper; j++) {
+        for (i = 0; i < num_label; i++) {
             if (data_ind_label[i] == data_pos_oper[j]) {
-                data_flag_oper[j] = i;
+                data_flag_label[j] = i;
+            }
+        }
+        for (i = 0; i < num_call; i++) {
+            if (data_ind_call[i] == data_pos_oper[j]) {
+                data_flag_call[j] = i;
             }
         }
     }
@@ -566,8 +730,11 @@ int Stack_disassembler(const char * str_file_in, const char * str_file_out)
     f_in = fopen(str_file_in, "r");
     num_str_oper = 0;
     while (fscanf(f_in, "%lf", &ind_oper) == 1) {
-        if (data_flag_oper[num_str_oper] != -1) {
-            fprintf(f_out, "lb%d: ", data_flag_oper[num_str_oper]);
+        if (data_flag_label[num_str_oper] != -1) {
+            fprintf(f_out, "lb_%d: ", data_flag_label[num_str_oper]);
+        }
+        if (data_flag_call[num_str_oper] != -1) {
+            fprintf(f_out, "func_%d: ", data_flag_call[num_str_oper]);
         }
         switch ((int)ind_oper) {
             case 1:
@@ -589,7 +756,7 @@ int Stack_disassembler(const char * str_file_in, const char * str_file_out)
             case 6:
                 fscanf(f_in, "%lf", &additional_doub);
                 for (i = 0; data_ind_label[i] != (int)additional_doub; i++);
-                fprintf(f_out, "JMP :lb%d\n", i);
+                fprintf(f_out, "JMP :lb_%d\n", i);
                 break;
             case 7:
                 fprintf(f_out, "out\n");
@@ -599,24 +766,52 @@ int Stack_disassembler(const char * str_file_in, const char * str_file_out)
                 break;
             case 9:
                 fscanf(f_in, "%lf", &additional_doub);
-                fprintf(f_out, "pop REGISTR_%d\n", (int)additional_doub);
+                fprintf(f_out, "pop %cX\n", (int)additional_doub+'A');
                 break;
             case 10:
-                fprintf(f_out, "JMP\n");
+                fprintf(f_out, "ret\n");
                 break;
             case 11:
                 fscanf(f_in, "%lf", &additional_doub);
                 for (i = 0; data_ind_label[i] != (int)additional_doub; i++);
-                fprintf(f_out, "JNZ :lb%d\n", i);
+                fprintf(f_out, "JNZ :lb_%d\n", i);
                 break;
             case 12:
                 fscanf(f_in, "%lf", &additional_doub);
                 for (i = 0; data_ind_label[i] != (int)additional_doub; i++);
-                fprintf(f_out, "JZ :lb%d\n", i);
+                fprintf(f_out, "JZ :lb_%d\n", i);
                 break;
             case 13:
                 fscanf(f_in, "%lf", &additional_doub);
-                fprintf(f_out, "push REGISTR_%d\n", (int)additional_doub);
+                fprintf(f_out, "push %cX\n", (int)additional_doub+'A');
+                break;
+            case 14:
+                fprintf(f_out, "push io\n");
+                break;
+            case 15:
+                fprintf(f_out, "pop io\n");
+                break;
+            case 16:
+                fscanf(f_in, "%lf", &additional_doub);
+                fscanf(f_in, "%lf", &additional_doub);
+                for (i = 0; data_ind_call[i] != (int)additional_doub; i++);
+                fprintf(f_out, "call :func_%d\n", i);
+                break;
+            case 17:
+                fprintf(f_out, "div\n");
+                break;
+            case 18:
+                fprintf(f_out, "sqrt\n");
+                break;
+            case 19:
+                fscanf(f_in, "%lf", &additional_doub);
+                for (i = 0; data_ind_label[i] != (int)additional_doub; i++);
+                fprintf(f_out, "JG :lb_%d\n", i);
+                break;
+            case 20:
+                fscanf(f_in, "%lf", &additional_doub);
+                for (i = 0; data_ind_label[i] != (int)additional_doub; i++);
+                fprintf(f_out, "JL :lb_%d\n", i);
                 break;
             default:
                 return ERR_DISASSEMBLER;
@@ -624,9 +819,10 @@ int Stack_disassembler(const char * str_file_in, const char * str_file_out)
         }
         num_str_oper++;
     }
-    free(data_flag_oper);
+    free(data_flag_label);
     free(data_pos_oper);
     free(data_ind_label);
+    free(data_ind_call);
     fclose(f_in);
     fclose(f_out);
     return 0;

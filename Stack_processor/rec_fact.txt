@@ -1,0 +1,31 @@
+JMP :post_fact
+fact: pop CX
+pop AX
+push CX
+push AX
+JZ :var_0
+push AX
+push -1
+add
+call :fact
+mul
+pop AX
+pop CX
+push AX
+push CX
+ret
+
+var_0: pop
+pop CX
+push 1
+push CX
+ret
+
+post_fact: push io
+call :fact
+push io
+call :fact
+add
+pop io
+out
+end

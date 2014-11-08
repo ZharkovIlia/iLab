@@ -1,0 +1,98 @@
+push io
+push io
+push io
+pop CX
+pop BX
+JZ :var_0   
+pop AX   
+push BX
+push -1
+mul
+push BX
+push -1
+mul       
+push BX
+push BX
+mul
+push -4
+push AX
+push CX
+mul
+mul
+add
+JL :var_3
+
+JG :var_4
+
+push 1
+pop io
+pop
+pop
+push 2
+push AX
+mul
+div
+pop io
+JMP :end
+
+var_4: push 2
+pop io
+sqrt
+pop BX
+push BX
+add
+push 2
+push AX
+mul
+div
+pop io
+push BX
+push -1
+mul
+add
+push 2
+push AX
+mul
+div
+pop io
+JMP :end
+
+
+var_3: pop
+pop
+pop
+push 0
+pop io
+JMP :end
+
+var_0: pop
+push BX
+JZ :var_1  
+pop BX     
+push CX
+push -1
+mul
+push BX
+div
+push 1
+pop io
+pop io
+JMP :end
+
+
+var_1: pop
+push CX
+JZ :var_2 
+pop
+push 0 
+pop io            
+JMP :end
+
+
+var_2: pop
+push -1
+pop io
+JMP :end
+
+end: out
+end
