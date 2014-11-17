@@ -3,8 +3,8 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-//#undef assert
-//#define assert(cond)
+#undef assert
+#define assert(cond)
 
 
 List_t * List_new (int (*Cmp_elem_func) (const void *, const void *, int *), \
