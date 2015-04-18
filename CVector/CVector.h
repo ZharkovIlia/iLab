@@ -7,25 +7,82 @@
 #include <iostream>
 #include <string>
 
-
-const int MAXLEN_MESSAGE = 100;
-
-typedef enum {
-    GOOD = 0,
-    ERR_ALLOC = 1,
-    ERR_CTOR = 2,
-    ERR_SEGMENT = 3,
-    ERR_INDEX = 4,
-    ERR_RESIZE = 5,
-    ERR_OPER = 6,
-    ERR_VALUE = 7,
-} ERROR_VECTOR;
+#include <exception>
 
 
 typedef enum {
     BAD,
     OK,
 } VECT_OK;
+
+
+class CException_vect : public std::exception {
+public:
+    virtual ~CException_vect() throw() { };
+    virtual const char * what() const throw() = 0;
+protected:
+    CException_vect() throw() { };
+};
+
+
+class Vect_Err_ctor : public CException_vect {
+public:
+    Vect_Err_ctor() throw() { }
+    ~Vect_Err_ctor() throw() { };
+    const char * what() const throw() {
+        return "ERROR! Invalid parameters of CVector's constructors. May be you have some logical errors.";
+    }
+};
+
+
+class Vect_Err_segment : public CException_vect {
+public:
+    Vect_Err_segment() throw() { }
+    ~Vect_Err_segment() throw() { };
+    const char * what() const throw() {
+        return "ERROR! There are no elements in the CVector, but you try to refer to the elements.";
+    }
+};
+
+
+class Vect_Err_index : public CException_vect {
+public:
+    Vect_Err_index() throw() { }
+    ~Vect_Err_index() throw() { };
+    const char * what() const throw() {
+        return "ERROR! Invalid index of array (negative or too big for current size).";
+    }
+};
+
+
+class Vect_Err_resize : public CException_vect {
+public:
+    Vect_Err_resize() throw() { }
+    ~Vect_Err_resize() throw() { };
+    const char * what() const throw() {
+        return "ERROR! You have tried to resize CVector with negative size.";
+    }
+};
+
+
+class Vect_Err_oper : public CException_vect {
+public:
+    Vect_Err_oper() throw() { }
+    ~Vect_Err_oper() throw() { };
+    const char * what() const throw() {
+        return "ERROR! You have tried to do an operation with two CVectors of different sizes.";
+    }
+};
+
+
+class Vect_Err_value : public CException_vect {
+public:
+    Vect_Err_value() throw() { }
+    ~Vect_Err_value() throw() { };
+    const char * what() const throw() {
+        return "ERROR! Invalid value, which was transferred for division (may be it is zero).";
+    }
+};
 
 
 template <typename Data_T>
@@ -93,18 +150,6 @@ private:
 };
 
 
-class CException_vect {
-public:
-    CException_vect(const ERROR_VECTOR err);
-    const char * what() const;
-private:
-    CException_vect();
-
-    //be careful! see MAXLEN_MESSAGE
-    char message_[MAXLEN_MESSAGE];
-    ERROR_VECTOR err_;
-};
-
 
 #define DEBUG_VECTOR
 
@@ -148,23 +193,24 @@ CVector<Data_T>::CVector(int size):
 {
     //std::cout << "ctor size\n";
     if (size < 0) {
-        CException_vect exc(ERR_CTOR);
+        Vect_Err_ctor exc;
         throw exc;
     } else if (size == 0) {
         this->defaultbit_ = 1;
     } else {
-        try {
+
+        /*try {
             this->data_ = new Data_T[size];
         } catch (...) {
             CException_vect exc(ERR_ALLOC);
             throw exc;
-        }
+        }*/
+        this->data_ = new Data_T[size];
 
         // be careful! Array doesn't initialize
         //this->data != NULL
         this->size_ = size;
         // defaultbit == 0
-        // last_operation_status_ == GOOD;
     }
 }
 
@@ -177,17 +223,19 @@ CVector<Data_T>::CVector(const Data_T * arr, const int size_arr):
 {
     //std::cout << "ctor array\n";
     if (size_arr < 0 || arr == NULL) {
-        CException_vect exc(ERR_CTOR);
+        Vect_Err_ctor exc;
         throw exc;
     } else if (size_arr == 0) {
         this->defaultbit_ = 1;
     } else {
-        try {
+        /*try {
             this->data_ = new Data_T[size_arr];
         } catch (...) {
             CException_vect exc(ERR_ALLOC);
             throw exc;
-        }
+        }*/
+        this->data_ = new Data_T[size_arr];
+
         //this->data_ != NULL
         this->size_ = size_arr;
         for (int i = 0; i < size_arr; i++) {
@@ -211,12 +259,14 @@ CVector<Data_T>::CVector(const CVector<Data_T>& vect):
     if (vect.data_ == NULL) {
         ;
     } else {
-        try {
+        /*try {
             this->data_ = new Data_T[vect.size_];
         } catch (...) {
             CException_vect exc(ERR_ALLOC);
             throw exc;
-        }
+        }*/
+        this->data_ = new Data_T[vect.size_];
+
         for (int i = 0; i < vect.size_; i++) {
             this->data_[i] = vect.data_[i];
         }
@@ -241,11 +291,11 @@ Data_T& CVector<Data_T>::operator [] (const int n) const
 {
     assert_ok(__FILE__, __LINE__);
     if (this->defaultbit_ == 1) {
-        CException_vect exc(ERR_SEGMENT);
+        Vect_Err_segment exc;
         throw exc;
     }
     if (this->size_ <= n || n < 0) {
-        CException_vect exc(ERR_INDEX);
+        Vect_Err_index exc;
         throw exc;
     }
     return this->data_[n];
@@ -260,7 +310,7 @@ CVector<Data_T>& CVector<Data_T>::operator += (const CVector<Data_T>& vect)
     vect.assert_ok(__FILE__, __LINE__);
     #endif //DEBUG_VECTOR
     if (this->size_ != vect.size_) {
-        CException_vect exc(ERR_OPER);
+        Vect_Err_oper exc;
         throw exc;
     }
     if (this->size_ == 0) {
@@ -294,7 +344,7 @@ CVector<Data_T>& CVector<Data_T>::operator -= (const CVector<Data_T>& vect)
     vect.assert_ok(__FILE__, __LINE__);
     #endif //DEBUG_VECTOR
     if (this->size_ != vect.size_) {
-        CException_vect exc(ERR_OPER);
+        Vect_Err_oper exc;
         throw exc;
     }
     if (this->size_ == 0) {
@@ -336,12 +386,14 @@ CVector<Data_T>& CVector<Data_T>::operator = (const CVector<Data_T>& vect)
         this->size_ = 0;
     } else if (this->size_ != vect.size_) {
         Data_T * addit_dataptr = NULL;
-        try {
+        /*try {
             addit_dataptr = new Data_T[vect.size_];
         } catch (...) {
             CException_vect exc(ERR_ALLOC);
             throw exc;
-        }
+        }*/
+        addit_dataptr = new Data_T[vect.size_];
+
         delete [] this->data_;
         this->data_ = addit_dataptr;
         for (int i = 0; i < vect.size_; i++) {
@@ -392,12 +444,14 @@ CVector<Data_T>& CVector<Data_T>::operator = (const CVector<Other_T>& vect)
         this->size_ = 0;
     } else if (this->size_ != size) {
         Data_T * addit_dataptr = NULL;
-        try {
+        /*try {
             addit_dataptr = new Data_T[size];
         } catch (...) {
             CException_vect exc(ERR_ALLOC);
             throw exc;
-        }
+        }*/
+        addit_dataptr = new Data_T[size];
+
         delete [] this->data_;
         this->data_ = addit_dataptr;
         for (int i = 0; i < size; i++) {
@@ -417,13 +471,12 @@ CVector<Data_T>& CVector<Data_T>::operator = (const CVector<Other_T>& vect)
 template <typename Data_T, typename Other_T>
 CVector<Data_T>& operator += (CVector<Data_T>& vectto, const CVector<Other_T>& vectfrom)
 {
-    //std::cout << "now summ defferent vector\n";
     #ifdef DEBUG_VECTOR
     vectto.assert_ok(__FILE__, __LINE__);
     vectfrom.assert_ok(__FILE__, __LINE__);
     #endif //DEBUG_VECTOR
     if (vectto.size_ != vectfrom.size_) {
-        CException_vect exc(ERR_OPER);
+        Vect_Err_oper exc;
         throw exc;
     }
     if (vectto.size_ == 0) {
@@ -439,7 +492,6 @@ CVector<Data_T>& operator += (CVector<Data_T>& vectto, const CVector<Other_T>& v
 template <typename Data_T, typename Other_T>
 CVector<Data_T> operator + (const CVector<Data_T>& vectto, const CVector<Other_T>& vectfrom)
 {
-    //std::cout << "now sum of different vectors\n";
     #ifdef DEBUG_VECTOR
     vectfrom.assert_ok(__FILE__, __LINE__);
     vectto.assert_ok(__FILE__, __LINE__);
@@ -453,13 +505,12 @@ CVector<Data_T> operator + (const CVector<Data_T>& vectto, const CVector<Other_T
 template <typename Data_T, typename Other_T>
 CVector<Data_T>& operator -= (CVector<Data_T>& vectto, const CVector<Other_T>& vectfrom)
 {
-    //std::cout << "now div defferent vector\n";
     #ifdef DEBUG_VECTOR
     vectto.assert_ok(__FILE__, __LINE__);
     vectfrom.assert_ok(__FILE__, __LINE__);
     #endif //DEBUG_VECTOR
     if (vectto.size_ != vectfrom.size_) {
-        CException_vect exc(ERR_OPER);
+        Vect_Err_ctor exc;
         throw exc;
     }
     if (vectto.size_ == 0) {
@@ -475,7 +526,6 @@ CVector<Data_T>& operator -= (CVector<Data_T>& vectto, const CVector<Other_T>& v
 template <typename Data_T, typename Other_T>
 CVector<Data_T> operator - (const CVector<Data_T>& vectto, const CVector<Other_T>& vectfrom)
 {
-    //std::cout << "now div of different vectors\n";
     #ifdef DEBUG_VECTOR
     vectfrom.assert_ok(__FILE__, __LINE__);
     vectto.assert_ok(__FILE__, __LINE__);
@@ -527,7 +577,7 @@ CVector<Data_T>& CVector<Data_T>::operator /= (const Value_T& value)
     char mem[sizeof(value)];
     memset(mem, 0, sizeof(value));
     if ( ! memcmp(mem, &value, sizeof(value))) {
-        CException_vect exc(ERR_VALUE);
+        Vect_Err_value exc;
         throw exc;
     }
     for (int i = 0; i < this->size_; i++) {
@@ -556,7 +606,7 @@ Data_Ret_T operator * (const CVector<Data_Ret_T>& vect_ret, const CVector<Data_T
     vect.assert_ok(__FILE__, __LINE__);
     #endif //DEBUG_VECTOR
     if (vect_ret.size_ != vect.size_) {
-        CException_vect exc(ERR_OPER);
+        Vect_Err_oper exc;
         throw exc;
     }
     Data_Ret_T value;
@@ -573,7 +623,7 @@ void CVector<Data_T>::resize(const int size)
 {
     assert_ok(__FILE__, __LINE__);
     if (size < 0) {
-        CException_vect exc(ERR_RESIZE);
+        Vect_Err_resize exc;
         throw exc;
     }
     if (size == 0) {
@@ -585,12 +635,14 @@ void CVector<Data_T>::resize(const int size)
     }
     if (size > 0) {
         Data_T * addit_dataptr = NULL;
-        try {
+        /*try {
             addit_dataptr = new Data_T[size];
         } catch (...) {
             CException_vect exc(ERR_ALLOC);
             throw exc;
-        }
+        }*/
+        addit_dataptr = new Data_T[size];
+
         if (size >= this->size_) {
             for (int i = 0; i < this->size_; i++) {
                 addit_dataptr[i] = this->data_[i];
@@ -615,7 +667,7 @@ void CVector<Data_T>::array(const Data_T * arr, const int size_arr)
 {
     assert_ok(__FILE__, __LINE__);
     if (size_arr < 0) {
-        CException_vect exc(ERR_CTOR);
+        Vect_Err_ctor exc;
         throw exc;
     }
     if (size_arr == 0 || arr == NULL) {
@@ -627,12 +679,14 @@ void CVector<Data_T>::array(const Data_T * arr, const int size_arr)
     }
     if (size_arr > 0) {
         Data_T * addit_dataptr = NULL;
-        try {
+        /*try {
             addit_dataptr = new Data_T[size_arr];
         } catch (...) {
             CException_vect exc(ERR_ALLOC);
             throw exc;
-        }
+        }*/
+        addit_dataptr = new Data_T[size_arr];
+
         for (int i = 0; i < size_arr; i++) {
             addit_dataptr[i] = arr[i];
         }
