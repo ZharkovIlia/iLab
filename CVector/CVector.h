@@ -107,11 +107,11 @@ class CVector {
     friend Friend_Ret_T operator * (const CVector<Friend_Ret_T>& vect_ret, const CVector<Friend_T>& vect);
 
 public:
-    CVector();
-    CVector(int size);
+    CVector() throw();
+    CVector(const int size, const Data_T& data = Data_T() );
     CVector(const Data_T * arr, const int size_arr);
     CVector(const CVector<Data_T>& vect);
-    ~CVector();
+    ~CVector() throw();
 
 
     template <typename Other_T>
@@ -135,14 +135,14 @@ public:
     CVector<Data_T> operator - () const;
 
 
-    void resize(const int size);
+    void resize(const int size, const Data_T& data = Data_T());
     void array(const Data_T * arr, const int size_arr);
-    const Data_T * array(int * size_arr) const;
-    inline bool isdefault() const;
+    const Data_T * array(int * size_arr) const throw();
+    inline bool isdefault() const throw();
     std::string dump() const;
 private:
     void assert_ok(const char * file, const int line) const;
-    VECT_OK ok() const;
+    VECT_OK ok() const throw();
 
     Data_T * data_;
     int size_;
@@ -176,7 +176,7 @@ void CVector<Data_T>::assert_ok(const char * file, const int line) const
 
 
 template <typename Data_T>
-CVector<Data_T>::CVector():
+CVector<Data_T>::CVector() throw():
     data_(NULL),
     size_(0),
     defaultbit_(1)
@@ -186,7 +186,7 @@ CVector<Data_T>::CVector():
 
 
 template <typename Data_T>
-CVector<Data_T>::CVector(int size):
+CVector<Data_T>::CVector(const int size, const Data_T& data):
     data_(NULL),
     size_(0),
     defaultbit_(0)
@@ -198,17 +198,11 @@ CVector<Data_T>::CVector(int size):
     } else if (size == 0) {
         this->defaultbit_ = 1;
     } else {
-
-        /*try {
-            this->data_ = new Data_T[size];
-        } catch (...) {
-            CException_vect exc(ERR_ALLOC);
-            throw exc;
-        }*/
         this->data_ = new Data_T[size];
 
-        // be careful! Array doesn't initialize
-        //this->data != NULL
+        for (int i = 0; i < size; i++) {
+            this->data_[i] = data;
+        }
         this->size_ = size;
         // defaultbit == 0
     }
@@ -228,21 +222,14 @@ CVector<Data_T>::CVector(const Data_T * arr, const int size_arr):
     } else if (size_arr == 0) {
         this->defaultbit_ = 1;
     } else {
-        /*try {
-            this->data_ = new Data_T[size_arr];
-        } catch (...) {
-            CException_vect exc(ERR_ALLOC);
-            throw exc;
-        }*/
         this->data_ = new Data_T[size_arr];
 
-        //this->data_ != NULL
         this->size_ = size_arr;
         for (int i = 0; i < size_arr; i++) {
             this->data_[i] = arr[i];
         }
+        //this->defaultbit_ = 0;
     }
-    //this->defaultbit_ = 1;
 }
 
 
@@ -259,12 +246,6 @@ CVector<Data_T>::CVector(const CVector<Data_T>& vect):
     if (vect.data_ == NULL) {
         ;
     } else {
-        /*try {
-            this->data_ = new Data_T[vect.size_];
-        } catch (...) {
-            CException_vect exc(ERR_ALLOC);
-            throw exc;
-        }*/
         this->data_ = new Data_T[vect.size_];
 
         for (int i = 0; i < vect.size_; i++) {
@@ -277,12 +258,12 @@ CVector<Data_T>::CVector(const CVector<Data_T>& vect):
 
 
 template <typename Data_T>
-CVector<Data_T>::~CVector()
+CVector<Data_T>::~CVector() throw()
 {
     delete [] this->data_;
     this->data_ = NULL;
     this->size_ = -1;
-    //std::cout << "deleting vector" << std::endl;
+    std::cout << "deleting vector" << std::endl;
 }
 
 
@@ -383,29 +364,21 @@ CVector<Data_T>& CVector<Data_T>::operator = (const CVector<Data_T>& vect)
     if (vect.data_ == NULL) {
         delete [] this->data_;
         this->data_ = NULL;
-        this->size_ = 0;
     } else if (this->size_ != vect.size_) {
-        Data_T * addit_dataptr = NULL;
-        /*try {
-            addit_dataptr = new Data_T[vect.size_];
-        } catch (...) {
-            CException_vect exc(ERR_ALLOC);
-            throw exc;
-        }*/
-        addit_dataptr = new Data_T[vect.size_];
+        Data_T * addit_dataptr = new Data_T[vect.size_];
 
         delete [] this->data_;
         this->data_ = addit_dataptr;
         for (int i = 0; i < vect.size_; i++) {
             this->data_[i] = vect.data_[i];
         }
-        this->size_ = vect.size_;
     } else {
         for (int i = 0; i < vect.size_; i++) {
             this->data_[i] = vect.data_[i];
         }
     }
     this->defaultbit_ = vect.defaultbit_;
+    this->size_ = vect.size_;
     return *this;
 }
 
@@ -434,36 +407,27 @@ template <typename Data_T>
 template <typename Other_T>
 CVector<Data_T>& CVector<Data_T>::operator = (const CVector<Other_T>& vect)
 {
-    //std::cout << "now operator = of different vectors\n";
     assert_ok(__FILE__, __LINE__);
     int size = 0;
     const Other_T * addit_otherdata_ptr = vect.array(&size);
     if (addit_otherdata_ptr == NULL) {
         delete [] this->data_;
         this->data_ = NULL;
-        this->size_ = 0;
     } else if (this->size_ != size) {
-        Data_T * addit_dataptr = NULL;
-        /*try {
-            addit_dataptr = new Data_T[size];
-        } catch (...) {
-            CException_vect exc(ERR_ALLOC);
-            throw exc;
-        }*/
-        addit_dataptr = new Data_T[size];
+        Data_T * addit_dataptr = new Data_T[size];
 
         delete [] this->data_;
         this->data_ = addit_dataptr;
         for (int i = 0; i < size; i++) {
             this->data_[i] = addit_otherdata_ptr[i];
         }
-        this->size_ = size;
     } else {
         for (int i = 0; i < size; i++) {
             this->data_[i] = addit_otherdata_ptr[i];
         }
     }
     this->defaultbit_ = vect.isdefault();
+    this->size_ = size;
     return *this;
 }
 
@@ -510,7 +474,7 @@ CVector<Data_T>& operator -= (CVector<Data_T>& vectto, const CVector<Other_T>& v
     vectfrom.assert_ok(__FILE__, __LINE__);
     #endif //DEBUG_VECTOR
     if (vectto.size_ != vectfrom.size_) {
-        Vect_Err_ctor exc;
+        Vect_Err_oper exc;
         throw exc;
     }
     if (vectto.size_ == 0) {
@@ -574,9 +538,7 @@ template <typename Value_T>
 CVector<Data_T>& CVector<Data_T>::operator /= (const Value_T& value)
 {
     assert_ok(__FILE__, __LINE__);
-    char mem[sizeof(value)];
-    memset(mem, 0, sizeof(value));
-    if ( ! memcmp(mem, &value, sizeof(value))) {
+    if (value == 0) {
         Vect_Err_value exc;
         throw exc;
     }
@@ -609,8 +571,7 @@ Data_Ret_T operator * (const CVector<Data_Ret_T>& vect_ret, const CVector<Data_T
         Vect_Err_oper exc;
         throw exc;
     }
-    Data_Ret_T value;
-    memset(&value, 0, sizeof(value));
+    Data_Ret_T value = 0;
     for (int i = 0; i < vect.size_; i++) {
         value += (vect_ret.data_[i] * vect.data_[i]);
     }
@@ -619,7 +580,7 @@ Data_Ret_T operator * (const CVector<Data_Ret_T>& vect_ret, const CVector<Data_T
 
 
 template <typename Data_T>
-void CVector<Data_T>::resize(const int size)
+void CVector<Data_T>::resize(const int size, const Data_T& data)
 {
     assert_ok(__FILE__, __LINE__);
     if (size < 0) {
@@ -633,32 +594,28 @@ void CVector<Data_T>::resize(const int size)
         this->size_ = 0;
         return;
     }
-    if (size > 0) {
-        Data_T * addit_dataptr = NULL;
-        /*try {
-            addit_dataptr = new Data_T[size];
-        } catch (...) {
-            CException_vect exc(ERR_ALLOC);
-            throw exc;
-        }*/
-        addit_dataptr = new Data_T[size];
-
-        if (size >= this->size_) {
-            for (int i = 0; i < this->size_; i++) {
-                addit_dataptr[i] = this->data_[i];
-            }
-            // Be careful! Array doesn't initialize
-
-        } else {
-            for (int i = 0; i < size; i++) {
-                addit_dataptr[i] = this->data_[i];
-            }
-        }
-        delete [] this->data_;
-        this->data_ = addit_dataptr;
-        this->size_ = size;
-        this->defaultbit_ = 0;
+    if (size == this->size_) {
+        return;
     }
+    Data_T * addit_dataptr = new Data_T[size];
+
+    if (size >= this->size_) {
+        for (int i = 0; i < this->size_; i++) {
+            addit_dataptr[i] = this->data_[i];
+        }
+        for (int i = this->size_; i < size; i++) {
+            addit_dataptr[i] = data;
+        }
+    } else {
+        for (int i = 0; i < size; i++) {
+            addit_dataptr[i] = this->data_[i];
+        }
+    }
+    delete [] this->data_;
+    this->data_ = addit_dataptr;
+    this->size_ = size;
+    this->defaultbit_ = 0;
+    return;
 }
 
 
@@ -678,14 +635,7 @@ void CVector<Data_T>::array(const Data_T * arr, const int size_arr)
         return;
     }
     if (size_arr > 0) {
-        Data_T * addit_dataptr = NULL;
-        /*try {
-            addit_dataptr = new Data_T[size_arr];
-        } catch (...) {
-            CException_vect exc(ERR_ALLOC);
-            throw exc;
-        }*/
-        addit_dataptr = new Data_T[size_arr];
+        Data_T * addit_dataptr = new Data_T[size_arr];
 
         for (int i = 0; i < size_arr; i++) {
             addit_dataptr[i] = arr[i];
@@ -699,7 +649,7 @@ void CVector<Data_T>::array(const Data_T * arr, const int size_arr)
 
 
 template <typename Data_T>
-const Data_T * CVector<Data_T>::array(int * size_arr) const
+const Data_T * CVector<Data_T>::array(int * size_arr) const throw()
 {
     assert_ok(__FILE__, __LINE__);
     if (size_arr != NULL) {
@@ -710,7 +660,7 @@ const Data_T * CVector<Data_T>::array(int * size_arr) const
 
 
 template <typename Data_T>
-inline bool CVector<Data_T>::isdefault() const
+inline bool CVector<Data_T>::isdefault() const throw()
 {
     assert_ok(__FILE__, __LINE__);
     return this->defaultbit_;
@@ -718,7 +668,7 @@ inline bool CVector<Data_T>::isdefault() const
 
 
 template <typename Data_T>
-VECT_OK CVector<Data_T>::ok() const
+VECT_OK CVector<Data_T>::ok() const throw()
 {
     if (this->size_ < 0) {
         return BAD;
