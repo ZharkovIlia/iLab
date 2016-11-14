@@ -19,7 +19,7 @@
 
 typedef enum {
     BAD,
-    OK,
+    O,
 } VECT_OK;
 
 
