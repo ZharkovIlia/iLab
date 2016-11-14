@@ -1,6 +1,7 @@
 #ifndef MY_VECTOR
 #define MY_VECTOR
 
+#include <string.h>
 #include <assert.h>
 #include <sstream>
 #include <iostream>
