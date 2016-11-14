@@ -18,7 +18,7 @@
 
 
 typedef enum {
-    BA,
+    BAD,
     OK,
 } VECT_OK;
 
